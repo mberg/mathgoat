@@ -1,0 +1,8 @@
+CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE kids (id TEXT PRIMARY KEY, name TEXT NOT NULL, avatar TEXT NOT NULL, salt TEXT NOT NULL, pin_hash TEXT NOT NULL, goal INTEGER NOT NULL DEFAULT 2000, created_at TEXT DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE auth_sessions (token TEXT PRIMARY KEY, kid_id TEXT, is_admin INTEGER NOT NULL DEFAULT 0, expires INTEGER NOT NULL);
+CREATE TABLE login_attempts (key TEXT PRIMARY KEY, count INTEGER NOT NULL DEFAULT 0, reset_at INTEGER NOT NULL);
+CREATE TABLE rounds (id TEXT PRIMARY KEY, kid_id TEXT NOT NULL REFERENCES kids(id), mode TEXT NOT NULL, table_number INTEGER, length INTEGER NOT NULL, finished INTEGER DEFAULT 0, created_at TEXT DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE questions (id TEXT PRIMARY KEY, round_id TEXT NOT NULL REFERENCES rounds(id), position INTEGER NOT NULL, a INTEGER NOT NULL, b INTEGER NOT NULL, bonus INTEGER NOT NULL DEFAULT 0, issued_at INTEGER NOT NULL, answer INTEGER, correct INTEGER, elapsed_ms INTEGER, points INTEGER, answered_at TEXT, UNIQUE(round_id,position));
+CREATE INDEX rounds_kid ON rounds(kid_id);
+CREATE INDEX questions_round ON questions(round_id);
