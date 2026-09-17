@@ -233,9 +233,21 @@ export default {
           .bind(
             crypto.randomUUID(),
             body.name.trim(),
-            ["🐐", "🦊", "🐼", "🐸", "🦁", "🐨"].includes(body.avatar)
+            [
+              "🦛",
+              "🦩",
+              "🐊",
+              "🐒",
+              "🦁",
+              "🦋",
+              "🐐",
+              "🦊",
+              "🐼",
+              "🐸",
+              "🐨",
+            ].includes(body.avatar)
               ? body.avatar
-              : "🐐",
+              : "🦛",
             salt,
             await hash(body.pin, salt),
             body.goal,
@@ -304,9 +316,14 @@ export default {
           )
         )
           return json(
-            { error: "Beat the prerequisite bosses to unlock this battle." },
+            {
+              error:
+                "Beat the earlier stops on your adventure board to unlock this battle.",
+            },
             403,
           );
+        const attempts =
+          body.mode === "test" ? await history(db, auth.kid_id) : [];
         const special = specialBattles.find((b) => b.id === body.table);
         const id = crypto.randomUUID();
         await db
@@ -320,7 +337,11 @@ export default {
             body.mode !== "quest" ? body.table : null,
             body.mode === "test" ? 20 : body.length,
             body.mode === "test"
-              ? JSON.stringify(special ? mixedDeck(special.tables) : examDeck())
+              ? JSON.stringify(
+                  special
+                    ? mixedDeck(special.tables, Math.random, attempts)
+                    : examDeck(Math.random, attempts, body.table),
+                )
               : null,
           )
           .run();
@@ -333,6 +354,26 @@ export default {
           .bind(match[1], auth.kid_id)
           .first<any>();
         if (!round) return json({ error: "Round not found." }, 404);
+        if (
+          round.mode === "test" &&
+          !round.finished &&
+          !canChallenge(
+            round.table_number,
+            await certifications(
+              db,
+              auth.kid_id,
+              await history(db, auth.kid_id),
+            ),
+          )
+        )
+          return json(
+            {
+              error:
+                "Beat the earlier stops on your adventure board to unlock this battle.",
+            },
+            403,
+          );
+
         if (match[2] && req.method === "POST") {
           const q = await db
             .prepare("SELECT * FROM questions WHERE id=? AND round_id=?")
@@ -345,9 +386,14 @@ export default {
             body.answer > 999
           )
             return json({ error: "Enter a number from 0 to 999." }, 400);
-          const correct = body.answer === q.a * q.b,
-            points = award(correct, round.mode, !!q.bonus),
-            elapsed = Math.max(0, Date.now() - q.issued_at);
+          const elapsed = Math.max(
+              0,
+              Date.now() - q.issued_at,
+              round.mode === "test" && body.timedOut === true ? 6000 : 0,
+            ),
+            timedOut = round.mode === "test" && elapsed >= 6000,
+            correct = !timedOut && body.answer === q.a * q.b,
+            points = award(correct, round.mode, !!q.bonus);
           await db
             .prepare(
               "UPDATE questions SET answer=?,correct=?,elapsed_ms=?,points=?,answered_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=? AND answer IS NULL",
@@ -381,15 +427,27 @@ export default {
               .first<{ payload: string }>();
             hint = JSON.parse(stored!.payload);
           }
-          return json({ ...saved, product: q.a * q.b, hint });
+          return json({
+            ...saved,
+            timedOut: round.mode === "test" && (saved?.elapsed_ms ?? 0) >= 6000,
+            product: q.a * q.b,
+            hint,
+          });
         }
         const pending = await db
           .prepare(
-            "SELECT id,a,b,bonus,position FROM questions WHERE round_id=? AND answer IS NULL",
+            "SELECT id,a,b,bonus,position,issued_at FROM questions WHERE round_id=? AND answer IS NULL",
           )
           .bind(round.id)
-          .first();
-        if (pending) return json(pending);
+          .first<any>();
+        const questionPayload = (q: any) => ({
+          ...q,
+          remaining_ms:
+            round.mode === "test"
+              ? Math.max(0, q.issued_at + 6000 - Date.now())
+              : null,
+        });
+        if (pending) return json(questionPayload(pending));
         const count = await db
           .prepare(
             "SELECT COUNT(*) AS n,SUM(points) AS points,SUM(correct) AS correct FROM questions WHERE round_id=?",
@@ -420,10 +478,11 @@ export default {
         const attempts = await history(db, auth.kid_id);
         const deckEntry =
           round.mode === "test" ? JSON.parse(round.exam_deck)[count.n] : null;
-        const targets =
+        const certs =
           round.mode === "quest"
-            ? nextBossTables(await certifications(db, auth.kid_id, attempts))
+            ? await certifications(db, auth.kid_id, attempts)
             : [];
+        const targets = round.mode === "quest" ? nextBossTables(certs) : [];
         const review =
           round.mode === "quest"
             ? reviewFact(attempts.filter((a) => a.round_id === round.id))
@@ -450,12 +509,14 @@ export default {
           .bind(id, round.id, count.n + 1, fact.a, fact.b, bonus, Date.now())
           .run();
         return json(
-          await db
-            .prepare(
-              "SELECT id,a,b,bonus,position FROM questions WHERE round_id=? AND position=?",
-            )
-            .bind(round.id, count.n + 1)
-            .first(),
+          questionPayload(
+            await db
+              .prepare(
+                "SELECT id,a,b,bonus,position,issued_at FROM questions WHERE round_id=? AND position=?",
+              )
+              .bind(round.id, count.n + 1)
+              .first(),
+          ),
         );
       }
       return json({ error: "Not found" }, 404);

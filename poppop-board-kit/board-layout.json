@@ -1,0 +1,153 @@
+{
+  "image": "adventure-board-empty.png",
+  "width": 1536,
+  "height": 1024,
+  "nodeInnerDiameterPercentOfWidth": 6.7,
+  "coordinateOrigin": "top-left",
+  "nodes": [
+    {
+      "cardId": "01",
+      "title": "PopPop Gets Clean",
+      "label": "\u00d71",
+      "type": "table",
+      "xPercent": 13.7,
+      "yPercent": 15.6,
+      "initialState": "unearned"
+    },
+    {
+      "cardId": "02",
+      "title": "Breakfast: Mega Burp",
+      "label": "\u00d72",
+      "type": "table",
+      "xPercent": 38,
+      "yPercent": 15.6,
+      "initialState": "unearned"
+    },
+    {
+      "cardId": "03",
+      "title": "Croc Trouble",
+      "label": "\u00d73",
+      "type": "table",
+      "xPercent": 61.9,
+      "yPercent": 15.6,
+      "initialState": "unearned"
+    },
+    {
+      "cardId": "04",
+      "title": "Monkey Business",
+      "label": "\u00d74",
+      "type": "table",
+      "xPercent": 86.1,
+      "yPercent": 15.6,
+      "initialState": "unearned"
+    },
+    {
+      "cardId": "13",
+      "title": "The Great Keg Escape",
+      "label": "REGIONAL \u2022 1\u20134",
+      "type": "regional",
+      "xPercent": 86.1,
+      "yPercent": 35.4,
+      "initialState": "unearned"
+    },
+    {
+      "cardId": "05",
+      "title": "PopPop Olympics",
+      "label": "\u00d75",
+      "type": "table",
+      "xPercent": 61.9,
+      "yPercent": 35.4,
+      "initialState": "unearned"
+    },
+    {
+      "cardId": "06",
+      "title": "The Wrong Watermelon",
+      "label": "\u00d76",
+      "type": "table",
+      "xPercent": 38,
+      "yPercent": 35.4,
+      "initialState": "unearned"
+    },
+    {
+      "cardId": "07",
+      "title": "Flamingo on Strike",
+      "label": "\u00d77",
+      "type": "table",
+      "xPercent": 13.7,
+      "yPercent": 35.4,
+      "initialState": "unearned"
+    },
+    {
+      "cardId": "08",
+      "title": "The Dung Beetle Derby",
+      "label": "\u00d78",
+      "type": "table",
+      "xPercent": 13.7,
+      "yPercent": 61.4,
+      "initialState": "unearned"
+    },
+    {
+      "cardId": "14",
+      "title": "Captain PopPop and the Croc Pirates",
+      "label": "REGIONAL \u2022 5\u20138",
+      "type": "regional",
+      "xPercent": 38,
+      "yPercent": 61.4,
+      "initialState": "unearned"
+    },
+    {
+      "cardId": "09",
+      "title": "The Honey Heist",
+      "label": "\u00d79",
+      "type": "table",
+      "xPercent": 61.9,
+      "yPercent": 61.4,
+      "initialState": "unearned"
+    },
+    {
+      "cardId": "10",
+      "title": "Hippo in the Treetops",
+      "label": "\u00d710",
+      "type": "table",
+      "xPercent": 86.1,
+      "yPercent": 61.4,
+      "initialState": "unearned"
+    },
+    {
+      "cardId": "11",
+      "title": "The Royal Bottom Fan",
+      "label": "\u00d711",
+      "type": "table",
+      "xPercent": 86.1,
+      "yPercent": 84.4,
+      "initialState": "unearned"
+    },
+    {
+      "cardId": "12",
+      "title": "The Great Hippo Launch",
+      "label": "\u00d712",
+      "type": "table",
+      "xPercent": 61.9,
+      "yPercent": 84.4,
+      "initialState": "unearned"
+    },
+    {
+      "cardId": "15",
+      "title": "The Great Waterhole Plug",
+      "label": "REGIONAL \u2022 9\u201312",
+      "type": "regional",
+      "xPercent": 38,
+      "yPercent": 84.4,
+      "initialState": "unearned"
+    },
+    {
+      "cardId": "16",
+      "title": "King Monkey\u2019s Ridiculous Crown",
+      "label": "FINAL \u2022 1\u201312",
+      "type": "final",
+      "xPercent": 13.7,
+      "yPercent": 84.4,
+      "initialState": "unearned"
+    }
+  ]
+}

@@ -1,4 +1,11 @@
-import { specialBattles, canChallenge } from "./battles";
+import {
+  hasPassed,
+  adventureComplete,
+  nextBattle,
+  JOURNEY_ORDER,
+} from "./battles";
+import { AdventureBoard } from "./AdventureBoard";
+import { Collection } from "./Collection";
 import type { Hint } from "./hints";
 import "@fontsource/dm-sans/latin-400.css";
 import "@fontsource/dm-sans/latin-500.css";
@@ -18,7 +25,6 @@ import {
   Flag,
   Home,
   LogOut,
-  Mountain,
   Plus,
   Shield,
   Star,
@@ -26,7 +32,7 @@ import {
   Zap,
 } from "lucide-react";
 import { facts, unlockedTables, type Attempt } from "./learning";
-import { cards } from "./cards";
+import { cardFor, logoImage, playerImage } from "./cards";
 import "./style.css";
 type Kid = {
   id: string;
@@ -64,7 +70,9 @@ function App() {
     [question, setQuestion] = useState<any>(null),
     [answer, setAnswer] = useState(""),
     [feedback, setFeedback] = useState<any>(null),
-    [metric, setMetric] = useState("accuracy");
+    [remainingMs, setRemainingMs] = useState(6000);
+  const deadline = useRef(0);
+  const submitting = useRef(false);
   const input = useRef<HTMLInputElement>(null);
   const continueButton = useRef<HTMLButtonElement>(null);
   async function load() {
@@ -76,6 +84,7 @@ function App() {
     setProfiles(profiles);
     setKids(dashboard);
     setStatus(s);
+    if (s.auth?.admin) setPage("analytics");
   }
   useEffect(() => {
     load().catch((e) => setError(e.message));
@@ -109,8 +118,49 @@ function App() {
     }, 650);
     return () => window.clearTimeout(timer);
   }, [page, status?.auth, feedback, busy, error, round, question?.id]);
+  async function submitAnswer(timedOut = false) {
+    if (submitting.current || busy || feedback) return;
+    submitting.current = true;
+    try {
+      await act(async () => {
+        const expired =
+          mode === "test" &&
+          (timedOut || performance.now() >= deadline.current);
+        const result = await api("/round/" + round + "/answer", {
+          questionId: question.id,
+          answer: expired ? 0 : Number(answer),
+          timedOut: expired,
+        });
+        setFeedback(result);
+      });
+    } finally {
+      submitting.current = false;
+    }
+  }
+  useEffect(() => {
+    if (
+      page !== "play" ||
+      mode !== "test" ||
+      !question ||
+      question.done ||
+      feedback ||
+      busy ||
+      error
+    )
+      return;
+    const tick = () => {
+      const remaining = Math.max(0, deadline.current - performance.now());
+      setRemainingMs(remaining);
+      if (remaining === 0) void submitAnswer(true);
+    };
+    tick();
+    const timer = window.setInterval(tick, 100);
+    return () => window.clearInterval(timer);
+  }, [page, mode, question, feedback, busy, error]);
   async function next(id = round) {
     const q = await api("/round/" + id);
+    deadline.current = performance.now() + (q.remaining_ms ?? 6000);
+    setRemainingMs(q.remaining_ms ?? 6000);
     setQuestion(q);
     setAnswer("");
     setFeedback(null);
@@ -128,84 +178,43 @@ function App() {
     masteredTables = Array.from({ length: 12 }, (_, i) => i + 1).filter((t) =>
       kid?.certifications?.some((c) => c.table === t && c.passed),
     );
-  const special = specialBattles.find((b) => b.id === table);
-  const finalPassed = !!kid?.certifications.some(
-    (c) => c.table === 16 && c.passed,
-  );
+  const strugglingFacts = fs
+    .filter((f) => f.count > 0 && f.accuracy < 1)
+    .sort((a, b) => a.accuracy - b.accuracy)
+    .slice(0, 8);
+  const finalPassed = adventureComplete(kid?.certifications || []);
   const earnedCards = new Set(
     kid?.certifications.filter((c) => c.passed).map((c) => c.table),
   ).size;
-  const specialCards = (
-    <div className="collection special-battles">
-      {specialBattles.map((b) => {
-        const passed = kid?.certifications.some(
-          (c) => c.table === b.id && c.passed,
-        );
-        const unlocked = canChallenge(b.id, kid?.certifications || []);
-        return (
-          <article
-            className={"animal-card " + (passed ? "unlocked" : "locked")}
-            key={b.id}
-          >
-            <span className="eyebrow">
-              {b.id === 16 ? "COMPLETE THE ADVENTURE" : "MIXED-TABLE CHALLENGE"}
-            </span>
-            <span className="big-emoji">{b.emoji}</span>
-            <h2>{b.name}</h2>
-            <p>
-              {passed
-                ? b.id === 16
-                  ? "Adventure complete!"
-                  : "✓ Boss card collected"
-                : b.id === 16
-                  ? "Beat all three regional bosses to unlock."
-                  : `Beat table bosses ${b.tables.join(", ")} to unlock.`}
-            </p>
-            {page === "tests" ? (
-              <button
-                className="primary"
-                disabled={admin || !unlocked}
-                onClick={() => {
-                  setTable(b.id);
-                  setMode("test");
-                  setLength(20);
-                  setPage("choose");
-                }}
-              >
-                {unlocked ? "Challenge" : "Locked"}
-                <ArrowRight size={15} />
-              </button>
-            ) : (
-              <span className="card-status">
-                {passed ? "Collected" : "Beat this boss to collect"}
-              </span>
-            )}
-          </article>
-        );
-      })}
-    </div>
-  );
+  const availableTables = unlockedTables(fs);
+  function challenge(id: number) {
+    setTable(id);
+    setMode("test");
+    setLength(20);
+    setPage("choose");
+  }
   if (!status)
     return (
       <div className="loading">
-        🐐 Gathering the goats…{error && <p role="alert">{error}</p>}
+        Getting PopPop ready…{error && <p role="alert">{error}</p>}
       </div>
     );
   if (!status.auth)
     return (
       <div className="login">
         <div className="brand">
-          <span>🐐</span> mathgoat<span className="dot">.</span>
+          <img className="brand-logo" src={logoImage} alt="PopPop Math" />
         </div>
         <div className="login-card">
-          <span className="eyebrow">SMALL STEPS. BIG GOAT ENERGY.</span>
+          <span className="eyebrow">A LITTLE PRACTICE. A BIG ADVENTURE.</span>
           <h1>
             {!status.setup
               ? "Your family’s next adventure."
-              : "Who’s ready to climb?"}
+              : "Ready for your next adventure?"}
           </h1>
           <p>
-            Times tables, tiny victories, and some deeply unserious animals.
+            Explore the river. Beat the bosses. Discover PopPop’s story, one
+            card at a time.
           </p>
           {!status.setup ? (
             <form
@@ -311,22 +320,15 @@ function App() {
         <small>A little practice. A lot of possibilities.</small>
       </div>
     );
-  const nav: [string, typeof Home, string][] = [
-    ["home", Home, "Base camp"],
-    ["practice", Zap, "Practice"],
-    ["tests", Flag, "Boss battles"],
-    ["cards", BookOpen, "My collection"],
-    ["leaderboard", Trophy, "Leaderboard"],
-    ...(admin
-      ? [
-          ["analytics", BarChart3, "Parent dashboard"] as [
-            string,
-            typeof Home,
-            string,
-          ],
-        ]
-      : []),
-  ];
+  const nav: [string, typeof Home, string][] = admin
+    ? [["analytics", BarChart3, "Parent dashboard"]]
+    : [
+        ["home", Home, "Adventure"],
+        ["practice", Zap, "Practice"],
+        ["tests", Flag, "Boss battles"],
+        ["cards", BookOpen, "My collection"],
+        ["leaderboard", Trophy, "Leaderboard"],
+      ];
   return (
     <div className="app">
       <aside>
@@ -335,16 +337,16 @@ function App() {
           href="#"
           onClick={(e) => {
             e.preventDefault();
-            setPage("home");
+            setPage(admin ? "analytics" : "home");
           }}
         >
-          <span>🐐</span> mathgoat<span className="dot">.</span>
+          <img className="brand-logo" src={logoImage} alt="PopPop Math" />
         </a>
-        <div className="family-label">THE FAMILY ADVENTURE</div>
         <nav>
           {nav.map(([id, Icon, label]) => (
             <button
               key={id}
+              aria-label={label}
               className={page === id ? "nav active" : "nav"}
               onClick={() => {
                 if (
@@ -366,9 +368,15 @@ function App() {
         </nav>
         <div className="aside-bottom">
           <div className="tip">
-            <span>🐐</span>
-            <strong>Greatness takes practice.</strong>
-            <p>So does not eating your homework.</p>
+            <img className="sidebar-poppop" src={playerImage} alt="PopPop" />
+            <strong>
+              {admin ? "Your family’s progress." : "One stop at a time."}
+            </strong>
+            <p>
+              {admin
+                ? "See what each child knows and where they need help."
+                : "Every boss you beat reveals a new chapter."}
+            </p>
           </div>
           <button
             className="nav"
@@ -382,15 +390,12 @@ function App() {
               })
             }
           >
-            <LogOut size={18} /> Switch explorer
+            <LogOut size={18} /> Switch child
           </button>
         </div>
       </aside>
       <div className="main">
         <header>
-          <span>
-            <span className="status-dot" /> Every little step counts
-          </span>
           <div className="header-right">
             {admin && (
               <span className="parent-tag">
@@ -415,8 +420,8 @@ function App() {
                   <span className="eyebrow">LET’S MAKE A LITTLE PROGRESS</span>
                   <h1>
                     {admin
-                      ? "Welcome to base camp."
-                      : `Hey ${kid?.name}. Ready to level up?`}{" "}
+                      ? "Welcome to PopPop Math."
+                      : `Hey ${kid?.name}. Adventure awaits!`}{" "}
                     <span className="wave">✌️</span>
                   </h1>
                   <p>
@@ -430,7 +435,7 @@ function App() {
                     className="secondary"
                     onClick={() => setPage("analytics")}
                   >
-                    <Plus size={16} /> Add an explorer
+                    <Plus size={16} /> Add a child
                   </button>
                 )}
               </div>
@@ -438,12 +443,12 @@ function App() {
                 <div className="panel empty">
                   <span>🏕️</span>
                   <h2>Your adventure starts here.</h2>
-                  <p>Add your first explorer and give them a secret PIN.</p>
+                  <p>Add your first child and give them a secret PIN.</p>
                   <button
                     className="primary"
                     onClick={() => setPage("analytics")}
                   >
-                    Add an explorer <Plus size={16} />
+                    Add a child <Plus size={16} />
                   </button>
                 </div>
               ) : (
@@ -453,7 +458,7 @@ function App() {
                       icon="⚡"
                       label="TOTAL POINTS"
                       value={kid.points.toLocaleString()}
-                      note="Every answer adds up"
+                      note="Earn points on your quests"
                     />
                     <Stat
                       icon="🎯"
@@ -465,21 +470,29 @@ function App() {
                       icon="🃏"
                       label="CARDS COLLECTED"
                       value={`${earnedCards} / 16`}
-                      note="A wonderfully weird collection"
+                      note="A new story at every stop"
                     />
                   </div>
+                  {page === "home" && (
+                    <AdventureBoard
+                      certifications={kid.certifications}
+                      readOnly={!!admin}
+                      onChallenge={challenge}
+                    />
+                  )}
                   <div className="home-grid">
                     <section className="quest-panel">
                       <div className="quest-copy">
                         <span className="pill">✦ YOUR NEXT ADVENTURE</span>
                         <h2>
-                          Small questions.
-                          <br />
-                          Big goat energy.
+                          A little practice.
+                          <br />A big adventure.
                         </h2>
                         <p>
-                          A little familiar. A little challenging.
-                          <br />A quest that grows right along with you.
+                          Mix tables {availableTables.join(", ")}.
+                          <br />
+                          More unlock as you improve, with extra practice on
+                          tricky questions.
                         </p>
                         <div className="quest-facts">
                           <span>
@@ -490,20 +503,11 @@ function App() {
                           </span>
                         </div>
                       </div>
-                      <div className="mountain-scene" aria-hidden="true">
-                        <div className="sun" />
-                        <span className="cloud c1">☁</span>
-                        <span className="cloud c2">☁</span>
-                        <div className="peak back" />
-                        <div className="peak front" />
-                        <span className="summit-flag">⚑</span>
-                        <span className="goat">🐐</span>
-                        <span className="spark s1">✦</span>
-                        <span className="spark s2">✧</span>
-                        <span className="scene-label">
-                          THE ONLY WAY IS UP. ISH.
-                        </span>
-                      </div>
+                      <img
+                        className="quest-poppop"
+                        src={playerImage}
+                        alt="PopPop waving you on"
+                      />
                       <div className="quest-footer">
                         <div>
                           <strong>20 questions</strong>
@@ -535,7 +539,7 @@ function App() {
                       <div className="goal-icon">🏁</div>
                       <h2>One step closer.</h2>
                       <p>
-                        Keep climbing toward your
+                        Keep moving toward your
                         <br />
                         personal points goal.
                       </p>
@@ -581,7 +585,7 @@ function App() {
                         no pressure.
                       </p>
                     </div>
-                    <span className="subtle-tag">ALL TABLES WELCOME</span>
+                    <span className="subtle-tag">PRACTICE ANY TABLE</span>
                   </section>
                   <div className="table-grid">
                     {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
@@ -592,6 +596,7 @@ function App() {
                           (masteredTables.includes(n) ? "mastered" : "")
                         }
                         disabled={admin}
+                        aria-label={`Practice ${n}s`}
                         onClick={() => {
                           setTable(n);
                           setMode("practice");
@@ -622,16 +627,27 @@ function App() {
           )}
           {page === "choose" && (
             <section className="panel center-panel">
-              <span className="big-emoji">
-                {special?.emoji || cards[table - 1]?.emoji}
-              </span>
+              <div className="battle-preview">
+                {hasPassed(table, kid?.certifications || []) ? (
+                  <img src={cardFor(table).image} alt={cardFor(table).name} />
+                ) : (
+                  <div className="card-back">
+                    <img src={logoImage} alt="PopPop Math reward card" />
+                    <span>WIN TO REVEAL</span>
+                  </div>
+                )}
+              </div>
               <span className="eyebrow">
                 {mode === "test" ? "BOSS BATTLE" : "FOCUSED PRACTICE"}
               </span>
-              <h1>{special?.name || `The ${table} times table`}</h1>
+              <h1>
+                {mode === "test"
+                  ? cardFor(table).name
+                  : `The ${table} times table`}
+              </h1>
               <p>
                 {mode === "test"
-                  ? "20 questions. Get 18 right to win your card. We’ll show you the answer if you miss one."
+                  ? "20 questions, starting with three warm-ups. Six seconds per question. Get 18 right to win your card. If time runs out, we’ll show the answer and a helpful hint."
                   : "No points here—build your confidence for boss battles."}
               </p>
               <div className="segmented">
@@ -646,7 +662,8 @@ function App() {
                 ))}
               </div>
               <button className="primary" disabled={busy} onClick={start}>
-                Let’s practice <ArrowRight size={18} />
+                {mode === "test" ? "Start battle" : "Let’s practice"}{" "}
+                <ArrowRight size={18} />
               </button>
             </section>
           )}
@@ -678,6 +695,12 @@ function App() {
                       : "18 out of 20 unlocks your card. Try again whenever you’re ready."}
                   </p>
                 )}
+                {question.exam?.passed && (
+                  <figure className="earned-reveal">
+                    <img src={cardFor(table).image} alt={cardFor(table).name} />
+                    <figcaption>{cardFor(table).name}</figcaption>
+                  </figure>
+                )}
                 {question.review?.length > 0 && (
                   <p>
                     Worth another look:{" "}
@@ -703,7 +726,7 @@ function App() {
                     })
                   }
                 >
-                  Back to base camp <ArrowRight size={18} />
+                  Back to the board <ArrowRight size={18} />
                 </button>
               </section>
             ) : (
@@ -713,7 +736,7 @@ function App() {
                     {mode === "quest"
                       ? "Adaptive quest"
                       : mode === "test"
-                        ? special?.name || `Boss battle: ${table}s`
+                        ? cardFor(table).name
                         : `The ${table} times table`}
                   </span>
                   <strong>
@@ -725,14 +748,30 @@ function App() {
                   key={question.id}
                   className={"flashcard " + (question.bonus ? "bonus" : "")}
                 >
-                  <span className="pill">
-                    {question.bonus
-                      ? "✦ WILD CARD · DOUBLE POINTS"
-                      : "ONE LITTLE QUESTION. YOU’VE GOT THIS."}
-                  </span>
-                  <span className="card-animal">
-                    {cards[question.a - 1].emoji}
-                  </span>
+                  {question.bonus && (
+                    <span className="pill">✦ WILD CARD · DOUBLE POINTS</span>
+                  )}
+                  {mode === "test" && (
+                    <div
+                      className={
+                        "boss-timer" + (remainingMs <= 2000 ? " urgent" : "")
+                      }
+                      role="timer"
+                      aria-label="Time remaining"
+                    >
+                      <strong>
+                        {feedback?.timedOut
+                          ? "Time’s up"
+                          : `${(remainingMs / 1000).toFixed(1)}s`}
+                      </strong>
+                      <Progress value={remainingMs / 6000} />
+                    </div>
+                  )}
+                  <img
+                    className="question-poppop"
+                    src={playerImage}
+                    alt="PopPop"
+                  />
                   <h2>
                     {question.a} <span>×</span> {question.b}
                   </h2>
@@ -744,14 +783,11 @@ function App() {
                       e.preventDefault();
                       if (feedback) {
                         if (!feedback.correct || error) act(() => next());
-                      } else if (answer.trim())
-                        act(async () => {
-                          const result = await api(
-                            "/round/" + round + "/answer",
-                            { questionId: question.id, answer: Number(answer) },
-                          );
-                          setFeedback(result);
-                        });
+                      } else if (
+                        answer.trim() ||
+                        (mode === "test" && remainingMs === 0)
+                      )
+                        void submitAnswer();
                     }}
                   >
                     <label className="sr-only" htmlFor="answer">
@@ -782,27 +818,29 @@ function App() {
                             ? mode === "quest"
                               ? `Nailed it! +${feedback.points} points`
                               : "Nailed it!"
-                            : `Good try. ${question.a} × ${question.b} = ${feedback.product}`}
+                            : `${feedback.timedOut ? "Time’s up." : "Good try."} ${question.a} × ${question.b} = ${feedback.product}`}
                         </strong>
                         {!feedback.correct && feedback.hint && (
                           <StrategyHint hint={feedback.hint} />
                         )}
                         <p>
                           {feedback.correct
-                            ? "The goat is mildly impressed."
+                            ? "One step closer. Here comes the next one."
                             : "Take a look, then press Enter or tap Next."}
                         </p>
                       </div>
                     ) : (
                       <p className="card-caption">
-                        {cards[question.a - 1].line}
+                        {cardFor(question.a).name} · {question.a} times table
                       </p>
                     )}
                     <button
                       ref={continueButton}
                       disabled={
                         busy ||
-                        (!feedback && !answer) ||
+                        (!feedback &&
+                          !answer &&
+                          !(mode === "test" && remainingMs === 0)) ||
                         (!!feedback?.correct && !error)
                       }
                       className="primary"
@@ -817,100 +855,42 @@ function App() {
                   </form>
                 </section>
                 <p className="bottom-note">
-                  Accuracy first. Take your time. We’re on your team.
+                  {mode === "test"
+                    ? "Six seconds per question. Get 18 of 20 right to win."
+                    : "Accuracy first. Take your time. We’re on your team."}
                 </p>
               </div>
             ))}
           {page === "tests" && (
             <>
               <PageTitle
-                eyebrow="TIME TO FACE THE WEIRDOS"
+                eyebrow="ONE PATH. SIXTEEN ADVENTURES."
                 title="Boss battles"
-                text="Beat table bosses, then the three regional bosses. Defeat the final boss to complete your adventure. Every battle: 20 questions, 18 correct to pass."
+                text="Beat each stop in order. Get 18 of 20 correct to reveal its card and unlock the next challenge."
               />
-              <div className="collection">
-                {cards.map((c) => (
-                  <article className="animal-card" key={c.table}>
-                    <span className="eyebrow">THE {c.table} TIMES TABLE</span>
-                    <span className="big-emoji">{c.emoji}</span>
-                    <h2>{c.name}</h2>
-                    <p>
-                      {masteredTables.includes(c.table)
-                        ? kid?.certifications.some(
-                            (x) => x.table === c.table && x.fluent,
-                          )
-                          ? "⚡ Passed + fluent"
-                          : "✓ Passed · Card collected"
-                        : c.line}
-                    </p>
-                    <button
-                      className="primary"
-                      disabled={admin}
-                      onClick={() => {
-                        setTable(c.table);
-                        setMode("test");
-                        setLength(20);
-                        setPage("choose");
-                      }}
-                    >
-                      Challenge <ArrowRight size={15} />
-                    </button>
-                  </article>
-                ))}
-              </div>
-              <section className="section-heading">
-                <div>
-                  <h2>Regional bosses & the final challenge</h2>
-                  <p>Bosses earn cards. Only quests earn points.</p>
-                </div>
-              </section>
-              {specialCards}
+              <AdventureBoard
+                certifications={kid?.certifications || []}
+                readOnly={!!admin}
+                onChallenge={challenge}
+              />
               <p className="muted">
-                No points or random bonuses during battles. Fluent = 18/20
-                correct and median correct-answer time ≤ 6 seconds. Practice
-                mastery remains a separate, ongoing measure.
+                The 1s, 2s, 3s, 4s, then the first regional boss. Keep following
+                the path to the final showdown. Earn fluency badges separately
+                by passing with a median correct-answer time of six seconds or
+                less.
               </p>
             </>
           )}
           {page === "cards" && (
             <>
               <PageTitle
-                eyebrow="THE WEIRD AND WONDERFUL"
-                title="Your collection"
-                text="Pass a table’s 20-question boss battle with 18 correct to collect its resident weirdo."
+                eyebrow={`${earnedCards} OF 16 DISCOVERED`}
+                title="Your PopPop collection"
+                text="Each boss holds a new chapter. Win the battle to reveal its illustration."
               />
-              <div className="collection">
-                {cards.map((c) => {
-                  const unlocked = masteredTables.includes(c.table);
-                  return (
-                    <article
-                      className={
-                        "animal-card " + (unlocked ? "unlocked" : "locked")
-                      }
-                      key={c.table}
-                    >
-                      <span className="eyebrow">
-                        {unlocked ? "✦ COLLECTED" : `MASTER THE ${c.table}s`}
-                      </span>
-                      <span className="big-emoji">{c.emoji}</span>
-                      <h2>{c.name}</h2>
-                      <p>{c.line}</p>
-                      <span className="card-status">
-                        {unlocked
-                          ? kid?.certifications.some(
-                              (x) => x.table === c.table && x.fluent,
-                            )
-                            ? "⚡ Fluent · Officially part of the herd"
-                            : "Officially part of the herd"
-                          : "Pass the boss battle to unlock"}
-                      </span>
-                    </article>
-                  );
-                })}
-              </div>
+              <Collection certifications={kid?.certifications || []} />
             </>
           )}
-          {page === "cards" && specialCards}
           {page === "leaderboard" && (
             <>
               <PageTitle
@@ -920,27 +900,7 @@ function App() {
               />
               <section className="panel">
                 <Leaderboard kids={kids} />
-                <div className="rank-list">
-                  {[...kids]
-                    .sort((a, b) => b.points - a.points)
-                    .map((k, i) => (
-                      <div key={k.id}>
-                        <span className="rank">{i + 1}</span>
-                        <span className="avatar">{k.avatar}</span>
-                        <strong>
-                          {k.name}
-                          {k.certifications.some(
-                            (c) => c.table === 16 && c.passed,
-                          )
-                            ? " 👑"
-                            : ""}
-                        </strong>
-                        <span>{k.mastered} / 144 mastered</span>
-                        <b>{k.points.toLocaleString()} pts</b>
-                      </div>
-                    ))}
-                </div>
-                {!kids.length && <p>Add an explorer to get started.</p>}
+                {!kids.length && <p>Add a child to get started.</p>}
               </section>
             </>
           )}
@@ -951,9 +911,45 @@ function App() {
                 title="Little steps, made visible."
                 text="See what’s sticking, what’s tricky, and where to go next."
               />
+              <div className="child-summaries">
+                {kids.map((child) => {
+                  const cards = new Set(
+                    child.certifications
+                      .filter((c) => c.passed)
+                      .map((c) => c.table),
+                  ).size;
+                  return (
+                    <button
+                      key={child.id}
+                      className={
+                        "panel child-summary" +
+                        (child.id === kid?.id ? " selected" : "")
+                      }
+                      aria-pressed={child.id === kid?.id}
+                      onClick={() => setSelected(child.id)}
+                    >
+                      <strong>
+                        {child.avatar} {child.name}
+                      </strong>
+                      <span>
+                        {child.points.toLocaleString()} /{" "}
+                        {child.goal.toLocaleString()} points
+                      </span>
+                      <Progress value={child.points / child.goal} />
+                      <span>{child.mastered} / 144 facts mastered</span>
+                      <span>{cards} / 16 cards earned</span>
+                      <small>
+                        {adventureComplete(child.certifications)
+                          ? "Adventure complete!"
+                          : "Adventure in progress"}
+                      </small>
+                    </button>
+                  );
+                })}
+              </div>
               <div className="admin-tools">
                 <label>
-                  Explorer
+                  Child
                   <select
                     value={kid?.id || ""}
                     onChange={(e) => setSelected(e.target.value)}
@@ -1018,10 +1014,26 @@ function App() {
                     <Stat
                       icon="🔓"
                       label="QUEST TABLES"
-                      value={unlockedTables(fs).join(", ")}
+                      value={availableTables.join(", ")}
                       note="More unlock as confidence grows"
                     />
                   </div>
+                  <section className="panel parent-cards">
+                    <h2>
+                      {kid.name}’s earned cards · {earnedCards} / 16
+                    </h2>
+                    {earnedCards ? (
+                      <Collection
+                        key={kid.id}
+                        certifications={kid.certifications}
+                        earnedOnly
+                      />
+                    ) : (
+                      <p>
+                        No cards earned yet. Each boss victory earns a card.
+                      </p>
+                    )}
+                  </section>
                   <section className="panel analytics-panel">
                     <div className="section-heading">
                       <div>
@@ -1031,47 +1043,69 @@ function App() {
                           for details.
                         </p>
                       </div>
-                      <select
-                        aria-label="Heatmap metric"
-                        value={metric}
-                        onChange={(e) => setMetric(e.target.value)}
-                      >
-                        <option value="accuracy">Accuracy</option>
-                        <option value="count">Practice frequency</option>
-                        <option value="median">Response speed</option>
-                      </select>
                     </div>
-                    <Heatmap attempts={kid.attempts} metric={metric} />
-                    <p className="muted">
-                      Gray = not practiced. Accuracy and speed use the last 10
-                      attempts; frequency uses all attempts. Speed is the median
-                      of correct answers.
-                    </p>
+                    {[
+                      {
+                        metric: "accuracy",
+                        title: "Accuracy",
+                        note: "Numbers show total correct answers across all attempts. Colors show accuracy over the last 10 attempts. Gray = not practiced.",
+                      },
+                      {
+                        metric: "count",
+                        title: "Practice frequency",
+                        note: "Total attempts for each fact. Gray = not practiced.",
+                      },
+                      {
+                        metric: "median",
+                        title: "Response speed",
+                        note: "Median time for correct answers among the last 10 attempts. Gray = no correct-answer timing data.",
+                      },
+                    ].map(({ metric, title, note }) => (
+                      <section
+                        className="heatmap-section"
+                        key={metric}
+                        aria-labelledby={`heatmap-${metric}`}
+                      >
+                        <h3 id={`heatmap-${metric}`}>{title}</h3>
+                        <p className="muted">{note}</p>
+                        {metric === "accuracy" && (
+                          <p className="mastery-legend">
+                            <span
+                              className="mastery-swatch"
+                              aria-hidden="true"
+                            />
+                            Outlined squares = mastered ·{" "}
+                            {fs.filter((f) => f.mastered).length} / 144
+                          </p>
+                        )}
+                        <Heatmap attempts={kid.attempts} metric={metric} />
+                      </section>
+                    ))}
                   </section>
                   <section className="panel">
                     <h2>Worth another look</h2>
+                    <p className="muted">
+                      Questions with mistakes in their last 10 attempts, lowest
+                      accuracy first.
+                    </p>
                     <div className="tricky">
-                      {fs
-                        .filter((f) => f.count && !f.mastered)
-                        .sort(
-                          (a, b) =>
-                            a.accuracy - b.accuracy || b.median - a.median,
-                        )
-                        .slice(0, 8)
-                        .map((f) => (
-                          <div key={`${f.a}-${f.b}`}>
-                            <strong>
-                              {f.a} × {f.b}
-                            </strong>
-                            <span>{Math.round(f.accuracy * 100)}% correct</span>
-                            <small>
-                              {f.median
-                                ? `${(f.median / 1000).toFixed(1)}s median`
-                                : "No correct answers yet"}
-                            </small>
-                          </div>
-                        ))}
+                      {strugglingFacts.map((f) => (
+                        <div key={`${f.a}-${f.b}`}>
+                          <strong>
+                            {f.a} × {f.b}
+                          </strong>
+                          <span>{Math.round(f.accuracy * 100)}% correct</span>
+                          <small>
+                            {f.median
+                              ? `${(f.median / 1000).toFixed(1)}s median`
+                              : "No correct answers yet"}
+                          </small>
+                        </div>
+                      ))}
                     </div>
+                    {!!kid.answered && !strugglingFacts.length && (
+                      <p>No recent mistakes to revisit.</p>
+                    )}
                     {!kid.answered && (
                       <p>
                         No answers yet. Their first quest will start filling in
@@ -1082,7 +1116,7 @@ function App() {
                 </>
               )}
               <section className="panel">
-                <h2>Add an explorer</h2>
+                <h2>Add a child</h2>
                 <form
                   className="add-form"
                   onSubmit={(e) => {
@@ -1125,9 +1159,9 @@ function App() {
                     />
                   </label>
                   <label>
-                    Animal
+                    Child icon
                     <select name="avatar">
-                      {["🐐", "🦊", "🐼", "🐸", "🦁", "🐨"].map((a) => (
+                      {["🦛", "🦩", "🐊", "🐒", "🦁", "🦋"].map((a) => (
                         <option key={a}>{a}</option>
                       ))}
                     </select>
@@ -1144,15 +1178,15 @@ function App() {
                     />
                   </label>
                   <button className="primary" disabled={busy}>
-                    Add explorer <Plus size={16} />
+                    Add child <Plus size={16} />
                   </button>
                 </form>
               </section>
             </>
           )}
           <footer>
-            MADE FOR LITTLE BREAKTHROUGHS{" "}
-            <span>Stay curious. Be a little GOAT.</span>
+            POPPOP MATH · ONE ADVENTURE AT A TIME{" "}
+            <span>A little practice. A big adventure.</span>
           </footer>
         </main>
       </div>
@@ -1216,8 +1250,15 @@ function Heatmap({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const fs = facts(attempts);
+    const fs = facts(attempts).map((fact) => ({
+      ...fact,
+      correctCount: attempts.filter(
+        (attempt) =>
+          attempt.a === fact.a && attempt.b === fact.b && attempt.correct,
+      ).length,
+    }));
     const chart = Plot.plot({
+      style: { fontSize: "12px" },
       width: 700,
       height: 430,
       marginLeft: 45,
@@ -1259,8 +1300,14 @@ function Heatmap({
                   : f.accuracy,
           inset: 2,
           rx: 5,
+          stroke: {
+            value: (f) =>
+              metric === "accuracy" && f.mastered ? "#a348c4" : "none",
+            scale: null,
+          },
+          strokeWidth: 3,
           title: (f) =>
-            `${f.a} × ${f.b}\n${f.count} attempts\n${Math.round(f.accuracy * 100)}% correct\n${(f.median / 1000).toFixed(1)}s median${f.mastered ? "\nMastered!" : ""}`,
+            `${f.a} × ${f.b}\n${f.correctCount} correct out of ${f.count} total attempts\n${Math.round(f.accuracy * 100)}% correct (last 10 attempts)\n${(f.median / 1000).toFixed(1)}s median${f.mastered ? "\nMastered!" : ""}`,
           tip: true,
         }),
         Plot.cell(
@@ -1276,6 +1323,25 @@ function Heatmap({
             tip: true,
           },
         ),
+        ...(metric === "accuracy"
+          ? [
+              Plot.text(
+                fs.filter((f) => f.count > 0),
+                {
+                  x: "b",
+                  y: "a",
+                  text: (f) => String(f.correctCount),
+                  fill: {
+                    value: (f) => (f.accuracy >= 0.6 ? "#ffffff" : "#28372a"),
+                    scale: null,
+                  },
+                  fontSize: 14,
+                  fontWeight: 700,
+                  pointerEvents: "none",
+                },
+              ),
+            ]
+          : []),
       ],
     });
     ref.current?.replaceChildren(chart);
@@ -1286,35 +1352,72 @@ function Heatmap({
   return <div ref={ref} className="chart" />;
 }
 function Leaderboard({ kids }: { kids: Kid[] }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!kids.length) return;
-    const chart = Plot.plot({
-      width: 850,
-      height: Math.max(180, kids.length * 65),
-      marginLeft: 110,
-      x: { label: "Total points", grid: true },
-      y: { label: null },
-      color: { range: ["#68834d"] },
-      marks: [
-        Plot.barX(
-          [...kids].sort((a, b) => b.points - a.points),
-          {
-            x: "points",
-            y: (k) => `${k.avatar} ${k.name}`,
-            fill: "#68834d",
-            rx: 5,
-            tip: true,
-          },
-        ),
-      ],
-    });
-    ref.current?.replaceChildren(chart);
-    return () => {
-      chart.remove();
-    };
-  }, [kids]);
-  return <div className="chart" ref={ref} />;
+  const ranked = kids
+    .map((kid) => ({
+      ...kid,
+      cards: JOURNEY_ORDER.filter((id) => hasPassed(id, kid.certifications))
+        .length,
+      next: nextBattle(kid.certifications),
+    }))
+    .sort(
+      (a, b) =>
+        b.cards - a.cards ||
+        b.points - a.points ||
+        a.name.localeCompare(b.name),
+    );
+  return (
+    <div className="journey-leaderboard">
+      <p className="muted">
+        Earn all 16 cards to complete the adventure. Ranked by cards earned,
+        then quest points.
+      </p>
+      {ranked.map((child, index) => (
+        <article
+          className="leaderboard-child"
+          key={child.id}
+          aria-label={child.name}
+        >
+          <div className="leaderboard-heading">
+            <span className="rank">#{index + 1}</span>
+            <span className="avatar">{child.avatar}</span>
+            <h2>
+              {child.name}
+              {child.next === null ? " 👑" : ""}
+            </h2>
+            <strong className="leaderboard-card-count">
+              {child.cards} / 16 cards
+            </strong>
+          </div>
+          <div
+            className="journey-progress"
+            role="progressbar"
+            aria-label={child.name + " adventure progress"}
+            aria-valuemin={0}
+            aria-valuemax={16}
+            aria-valuenow={child.cards}
+            aria-valuetext={child.cards + " of 16 cards earned"}
+          >
+            <Progress value={child.cards / 16} />
+          </div>
+          <p className="leaderboard-next">
+            {child.next === null
+              ? "Adventure complete! Final boss conquered."
+              : "Next battle: " + cardFor(child.next).name}
+          </p>
+          <div className="leaderboard-secondary">
+            <span>{child.points.toLocaleString()} points</span>
+            <span>{child.mastered} / 144 questions mastered</span>
+          </div>
+          {child.cards > 0 && (
+            <details className="leaderboard-cards">
+              <summary>View earned cards ({child.cards})</summary>
+              <Collection certifications={child.certifications} earnedOnly />
+            </details>
+          )}
+        </article>
+      ))}
+    </div>
+  );
 }
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

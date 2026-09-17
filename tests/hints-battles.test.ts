@@ -1,8 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { multiplicationHint } from "../src/hints.ts";
-import { mixedDeck, canChallenge, nextBossTables } from "../src/battles.ts";
-import { reviewFact, type Attempt, award } from "../src/learning.ts";
+import {
+  mixedDeck,
+  canChallenge,
+  nextBossTables,
+  JOURNEY_ORDER,
+  nextBattle,
+  adventureComplete,
+} from "../src/battles.ts";
+import { reviewFact, type Attempt, award, examDeck } from "../src/learning.ts";
 const attempt = (a: number, b: number, correct = 1): Attempt => ({
   a,
   b,
@@ -54,22 +61,25 @@ test("mixed battles cover each table evenly with no duplicate questions", () => 
     assert.ok(deck.every((q) => tables.includes(q.a) && q.b >= 1 && q.b <= 12));
   }
 });
-test("regional and final battles enforce prerequisites independently of points", () => {
+test("every boss requires all preceding board stops; old earned cards cannot skip gaps", () => {
   const cert = (table: number) => ({ table, passed: true, fluent: false });
-  assert.equal(canChallenge(12, []), true);
-  assert.equal(canChallenge(13, []), false);
-  assert.equal(canChallenge(13, [1, 2, 3, 4].map(cert)), true);
-  assert.equal(canChallenge(13, [1, 2, 3].map(cert)), false);
-  assert.equal(
-    canChallenge(
-      16,
-      Array.from({ length: 12 }, (_, i) => cert(i + 1)),
-    ),
-    false,
-  );
-  assert.equal(canChallenge(16, [13, 14, 15].map(cert)), true);
+  for (let i = 0; i < JOURNEY_ORDER.length; i++) {
+    const certs = JOURNEY_ORDER.slice(0, i).map(cert);
+    assert.equal(nextBattle(certs), JOURNEY_ORDER[i]);
+    assert.equal(canChallenge(JOURNEY_ORDER[i], certs), true);
+    for (const locked of JOURNEY_ORDER.slice(i + 1))
+      assert.equal(canChallenge(locked, certs), false);
+  }
+  assert.equal(canChallenge(12, []), false);
+  assert.equal(canChallenge(5, [1, 2, 3, 4].map(cert)), false);
+  assert.equal(canChallenge(5, [1, 2, 3, 4, 13].map(cert)), true);
+  assert.equal(canChallenge(16, [13, 14, 15].map(cert)), false);
+  assert.equal(nextBattle([cert(3), cert(16)]), 1);
+  assert.equal(adventureComplete([cert(16)]), false);
+  assert.equal(adventureComplete(JOURNEY_ORDER.map(cert)), true);
   assert.equal(canChallenge(17, []), false);
-  assert.deepEqual(nextBossTables([cert(13)]), [5, 6, 7, 8]);
+  assert.deepEqual(nextBossTables([1, 2, 3, 4].map(cert)), [1, 2, 3, 4]);
+  assert.deepEqual(nextBossTables([1, 2, 3, 4, 13].map(cert)), [5]);
   for (const mode of ["practice", "test"])
     assert.equal(award(true, mode, true), 0);
 });
@@ -83,4 +93,43 @@ test("missed questions return after three intervening answers, not immediately",
   assert.equal(reviewFact(answers.slice(0, 3)), null);
   assert.deepEqual(reviewFact(answers), { a: 9, b: 9 });
   assert.equal(reviewFact([...answers, attempt(9, 9)]), null);
+});
+
+test("bosses revisit weak facts while covering every table", () => {
+  const history = [attempt(3, 7, 0), { ...attempt(3, 9), elapsed_ms: 9000 }];
+  for (let i = 0; i < 30; i++) {
+    const deck = examDeck(Math.random, history, 3);
+    assert.equal(deck.filter((b) => b === 7).length, 2);
+    assert.equal(deck.filter((b) => b === 9).length, 2);
+    assert.equal(new Set(deck).size, 12);
+    const regional = mixedDeck([1, 2, 3, 4], Math.random, history);
+    assert.ok(regional.some((q) => q.a === 3 && q.b === 7));
+    assert.ok(regional.some((q) => q.a === 3 && q.b === 9));
+    const final = mixedDeck(
+      Array.from({ length: 12 }, (_, n) => n + 1),
+      Math.random,
+      history,
+    );
+    assert.ok(final.some((q) => q.a === 3 && q.b === 7));
+    assert.equal(new Set(final.map((q) => q.a)).size, 12);
+  }
+});
+
+test("bosses begin with three gentler questions without losing coverage", () => {
+  for (let i = 0; i < 30; i++) {
+    assert.deepEqual(examDeck().slice(0, 3), [1, 2, 5]);
+    const history = [attempt(7, 8), attempt(7, 1, 0)];
+    const single = examDeck(Math.random, history, 7);
+    assert.equal(single[0], 8);
+    assert.ok(!single.slice(0, 3).includes(1));
+    for (const tables of [
+      [1, 2, 3, 4],
+      Array.from({ length: 12 }, (_, n) => n + 1),
+    ]) {
+      const deck = mixedDeck(tables);
+      assert.equal(deck.length, 20);
+      assert.ok(deck.slice(0, 3).every((q) => [1, 2, 5, 10].includes(q.b)));
+      assert.equal(new Set(deck.map((q) => q.a)).size, tables.length);
+    }
+  }
 });

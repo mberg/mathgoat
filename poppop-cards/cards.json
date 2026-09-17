@@ -1,0 +1,150 @@
+{
+  "adventureOrder": [
+    "01",
+    "02",
+    "03",
+    "04",
+    "13",
+    "05",
+    "06",
+    "07",
+    "08",
+    "14",
+    "09",
+    "10",
+    "11",
+    "12",
+    "15",
+    "16"
+  ],
+  "cards": [
+    {
+      "id": "01",
+      "title": "PopPop Gets Clean",
+      "stage": "\u00d71",
+      "type": "table",
+      "file": "01-poppop-gets-clean.png",
+      "scene": "PopPop bathes in a river at sunrise, holding his living pink flamingo friend by both legs like a toothbrush. Bird is completely straight horizontally across his teeth: head at left, straight neck and feathered body pressed against teeth, legs at right in hippo fist. Flamingo looks toward viewer annoyed. Toothpaste foam, happy hippo."
+    },
+    {
+      "id": "02",
+      "title": "Breakfast: Mega Burp",
+      "stage": "\u00d72",
+      "type": "table",
+      "file": "02-breakfast-mega-burp.png",
+      "scene": "PopPop has just drunk from a wooden beer keg at breakfast and lets out a gigantic swirling golden comic burp. The pink flamingo is blown backward, feathers ruffling, reeds bending. Funny happy hippo, cozy river camp."
+    },
+    {
+      "id": "03",
+      "title": "Croc Trouble",
+      "stage": "\u00d73",
+      "type": "table",
+      "file": "03-croc-trouble.png",
+      "scene": "PopPop flees two scheming crocs at water's edge, looking back cheekily, his tiny tail spinning like a propeller and flinging a few stylized brown specks and a comic puff toward horrified crocodiles. Non-graphic toilet humor, lively chase."
+    },
+    {
+      "id": "04",
+      "title": "Monkey Business",
+      "stage": "\u00d74",
+      "type": "table",
+      "file": "04-monkey-business.png",
+      "scene": "Mischievous vervet monkeys raid river camp and carry away PopPop's wooden beer keg. PopPop and his exasperated pink flamingo friend leap into pursuit, overturning banana baskets. One strong clear action scene."
+    },
+    {
+      "id": "05",
+      "title": "PopPop Olympics",
+      "stage": "\u00d75",
+      "type": "table",
+      "file": "05-poppop-olympics.png",
+      "scene": "PopPop competes in a chaotic savanna hurdles race with a proud lion, green crocodile and laughing hyena. Hippo leaps heavily over a low log while the flamingo acts as race official. Dust, hilarious determined faces."
+    },
+    {
+      "id": "06",
+      "title": "The Wrong Watermelon",
+      "stage": "\u00d76",
+      "type": "table",
+      "file": "06-the-wrong-watermelon.png",
+      "scene": "At a savanna vegetable contest PopPop proudly ties a prize ribbon around a sleeping crocodile painted like a watermelon. The crocodile opens suspicious yellow eyes. Flamingo sees the mistake and looks horrified. Clearly recognizable green striped crocodile disguised as huge melon."
+    },
+    {
+      "id": "07",
+      "title": "Flamingo on Strike",
+      "stage": "\u00d77",
+      "type": "table",
+      "file": "07-flamingo-on-strike.png",
+      "scene": "Pink flamingo folds its wings and refuses toothbrush duty, holding a small toothbrush crossed out on a pictorial placard. PopPop attempts to brush his big teeth with a very indignant living porcupine, foam in quills. Harmless cartoon absurdity, no injury."
+    },
+    {
+      "id": "08",
+      "title": "The Dung Beetle Derby",
+      "stage": "\u00d78",
+      "type": "table",
+      "file": "08-the-dung-beetle-derby.png",
+      "scene": "Tiny determined dung beetle races atop a gigantic perfectly round cartoon dung ball while PopPop cheers proudly and the flamingo waves a race flag. Cheating monkeys in a banana-wheel racing cart stare in alarm. Dynamic sunny savanna race, non-graphic."
+    },
+    {
+      "id": "09",
+      "title": "The Honey Heist",
+      "stage": "\u00d79",
+      "type": "table",
+      "file": "09-the-honey-heist.png",
+      "scene": "PopPop and flamingo investigate huge sticky honey footprints, a furious honey badger follows them, and mischievous monkeys above carry stolen dripping honey pots. Hippo holding a magnifying glass, funny mystery in sunlit acacia grove."
+    },
+    {
+      "id": "10",
+      "title": "Hippo in the Treetops",
+      "stage": "\u00d710",
+      "type": "table",
+      "file": "10-hippo-in-the-treetops.png",
+      "scene": "PopPop wakes in his wooden camp bed dangling high in a great baobab on monkey ropes. His shocked face peers over edge while flamingo below figures out rescue. Monkeys laugh from branches. Comic height, no injury."
+    },
+    {
+      "id": "11",
+      "title": "The Royal Bottom Fan",
+      "stage": "\u00d711",
+      "type": "table",
+      "file": "11-the-royal-bottom-fan.png",
+      "scene": "An imperious lion seated on a rustic throne has his glorious mane blasted into a ridiculous swept-back hairstyle by PopPop's spinning tiny tail. A few tiny brown comic specks on lion, monkeys snicker behind a bush, pink flamingo deadpan. Non-graphic gross-out cartoon humor."
+    },
+    {
+      "id": "12",
+      "title": "The Great Hippo Launch",
+      "stage": "\u00d712",
+      "type": "table",
+      "file": "12-the-great-hippo-launch.png",
+      "scene": "PopPop has accidentally sat on the monkeys' wooden fruit catapult and is launched joyfully belly-first through the savanna sky amid overripe fruit. Flamingo and monkeys stare upward at the ridiculous flying hippo. Dramatic funny action, no injury."
+    },
+    {
+      "id": "13",
+      "title": "The Great Keg Escape",
+      "stage": "REGIONAL \u2022 1\u20134",
+      "type": "regional",
+      "file": "13-the-great-keg-escape.png",
+      "scene": "PopPop rides a runaway wooden beer keg downhill straight through a monkey barricade. Flamingo balances desperately on his head, monkeys leap away amid bananas and splintered barricade, epic dynamic chase."
+    },
+    {
+      "id": "14",
+      "title": "Captain PopPop and the Croc Pirates",
+      "stage": "REGIONAL \u2022 5\u20138",
+      "type": "regional",
+      "file": "14-captain-poppop-and-the-croc-pirates.png",
+      "scene": "Heroic PopPop pirate captain on a small wooden river raft, pink flamingo lookout, scheming crocodile pirates on nearby raft, splashing water and improvised leaf sails. Hippo's spinning tail provides comic propulsion. Grand river adventure."
+    },
+    {
+      "id": "15",
+      "title": "The Great Waterhole Plug",
+      "stage": "REGIONAL \u2022 9\u201312",
+      "type": "regional",
+      "file": "15-the-great-waterhole-plug.png",
+      "scene": "PopPop and flamingo charge a ridiculous monkey fortress dam built of logs and stolen camp furniture, unleashing water back toward thirsty savanna. Monkey leader on top splutters in surprise, heroic big splash, visually clear centerpiece."
+    },
+    {
+      "id": "16",
+      "title": "King Monkey\u2019s Ridiculous Crown",
+      "stage": "FINAL \u2022 1\u201312",
+      "type": "final",
+      "file": "16-king-monkeys-ridiculous-crown.png",
+      "scene": "Grand finale showdown: PopPop and his pink flamingo ally confront a pompous vervet monkey king wearing a ridiculous oversized crown of stolen spoons and cups, sitting on a towering throne made of stolen camp chairs, kegs and washbasins. Crocodile guards and monkey minions react in comic panic. Heroic hippo foreground, king elevated behind, warm sunset, triumphant playful epic scene."
+    }
+  ]
+}

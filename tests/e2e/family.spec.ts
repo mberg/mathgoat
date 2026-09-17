@@ -6,7 +6,7 @@ test("family setup, child practice, exam rewards, analytics, and mobile layout",
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   const stamp = Date.now(),
-    name = `Explorer ${stamp}`;
+    name = `Child ${stamp}`;
   await page.goto("/");
   await expect(page.locator(".login-card")).toBeVisible();
   if (
@@ -22,12 +22,26 @@ test("family setup, child practice, exam rewards, analytics, and mobile layout",
     await page.getByRole("button", { name: "Let’s go" }).click();
   }
   await expect(page.getByText("Parent mode", { exact: true })).toBeVisible();
+  for (const label of [
+    "Adventure",
+    "Practice",
+    "Boss battles",
+    "My collection",
+  ]) {
+    await expect(
+      page.getByRole("button", { name: label, exact: true }),
+    ).toHaveCount(0);
+  }
+  await expect(
+    page.getByRole("heading", { name: "Little steps, made visible." }),
+  ).toBeVisible();
+
   await page
     .getByRole("button", { name: "Parent dashboard", exact: true })
     .click();
   await page.getByLabel("Name", { exact: true }).fill(name);
   await page.getByLabel("Secret PIN", { exact: true }).fill("1234");
-  await page.getByRole("button", { name: "Add explorer", exact: true }).click();
+  await page.getByRole("button", { name: "Add child", exact: true }).click();
   await expect
     .poll(async () => {
       const r = await page.request.get("/api/profiles");
@@ -38,7 +52,7 @@ test("family setup, child practice, exam rewards, analytics, and mobile layout",
     (k: any) => k.name === name,
   );
   await page
-    .getByRole("combobox", { name: "Explorer", exact: true })
+    .getByRole("combobox", { name: "Child", exact: true })
     .selectOption(kid.id);
   await expect(
     page.getByRole("heading", { name: "The whole picture" }),
@@ -47,13 +61,73 @@ test("family setup, child practice, exam rewards, analytics, and mobile layout",
     path: "test-results/parent-desktop.png",
     fullPage: true,
   });
-  await page.getByRole("button", { name: "Switch explorer" }).click();
+  await page.getByRole("button", { name: "Switch child" }).click();
   await page.getByRole("button", { name, exact: false }).click();
   await page.getByLabel("Your secret 4-digit PIN").fill("1234");
   await page.getByRole("button", { name: "Let’s go" }).click();
   await expect(
     page.getByRole("heading", { name: new RegExp(`Hey ${name}`) }),
   ).toBeVisible();
+  await expect(page).toHaveTitle(/PopPop Math/);
+  await expect(page.locator(".board-stop")).toHaveCount(16);
+  await expect(page.locator('.board-stop[data-battle="1"]')).toHaveAttribute(
+    "aria-label",
+    /Available/,
+  );
+  await expect(page.locator('.board-stop[data-battle="2"]')).toHaveAttribute(
+    "aria-label",
+    /Locked/,
+  );
+  await page.locator('.board-stop[data-battle="3"]').click();
+  await expect(
+    page.getByRole("button", { name: "Locked", exact: true }),
+  ).toBeDisabled();
+  await expect(page.locator(".board-detail-copy")).toContainText(
+    "Croc Trouble",
+  );
+  await page.locator('.board-stop[data-battle="1"] .stop-go').click();
+  await expect(
+    page.getByRole("heading", { name: "PopPop Gets Clean", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Start battle", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Adventure", exact: true }).click();
+  for (const table of [2, 3, 12])
+    expect(
+      (
+        await page.request.post("/api/round", {
+          data: { mode: "test", table, length: 20 },
+        })
+      ).status(),
+    ).toBe(403);
+  for (let table = 1; table <= 12; table++)
+    expect(
+      (
+        await page.request.post("/api/round", {
+          data: { mode: "practice", table, length: 20 },
+        })
+      ).status(),
+    ).toBe(200);
+  await page
+    .getByRole("button", { name: "My collection", exact: true })
+    .click();
+  await expect(page.locator(".reward-card.unearned")).toHaveCount(16);
+  await expect(page.locator(".reward-art > img")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "View card: PopPop Gets Clean" }),
+  ).toBeDisabled();
+  await page.screenshot({
+    path: "test-results/collection-locked.png",
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "Practice", exact: true }).click();
+  await page.getByRole("button", { name: "Practice 12s", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "The 12 times table" }),
+  ).toBeVisible();
+  await expect(page.locator(".battle-preview > img")).toHaveCount(0);
+  await page.getByRole("button", { name: "Adventure", exact: true }).click();
   await page.screenshot({
     path: "test-results/base-camp-desktop.png",
     fullPage: true,
@@ -99,7 +173,10 @@ test("family setup, child practice, exam rewards, analytics, and mobile layout",
     page.getByRole("button", { name: "Next question", exact: true }),
   ).toBeFocused();
   await expect(page.locator(".strategy-hint")).toBeVisible();
-  await page.screenshot({path:"test-results/strategy-hint.png",fullPage:true});
+  await page.screenshot({
+    path: "test-results/strategy-hint.png",
+    fullPage: true,
+  });
   await expect(page.locator(".strategy-hint li").last()).toContainText(
     String(wrongA * wrongB),
   );
@@ -116,7 +193,7 @@ test("family setup, child practice, exam rewards, analytics, and mobile layout",
   // Complete a deterministic pass through the real API, including retry idempotency.
   const round = await (
     await page.request.post("/api/round", {
-      data: { mode: "test", table: 5, length: 20 },
+      data: { mode: "test", table: 1, length: 20 },
     })
   ).json();
   const multipliers: number[] = [];
@@ -124,8 +201,16 @@ test("family setup, child practice, exam rewards, analytics, and mobile layout",
   for (let i = 0; i < 20; i++) {
     const q = await (await page.request.get(`/api/round/${round.id}`)).json();
     multipliers.push(q.b);
+    if (i === 18) {
+      await page.waitForTimeout(6100);
+      const pending = await (
+        await page.request.get(`/api/round/${round.id}`)
+      ).json();
+      expect(pending.id).toBe(q.id);
+      expect(pending.remaining_ms).toBe(0);
+    }
     const response = await page.request.post(`/api/round/${round.id}/answer`, {
-      data: { questionId: q.id, answer: i < 18 ? q.a * q.b : 0 },
+      data: { questionId: q.id, answer: i <= 18 ? q.a * q.b : 0 },
     });
     expect(await response.json()).toMatchObject({
       correct: i < 18 ? 1 : 0,
@@ -144,9 +229,27 @@ test("family setup, child practice, exam rewards, analytics, and mobile layout",
   expect(new Set(multipliers).size).toBe(12);
   await page.reload();
   await page.getByRole("button", { name: "My collection" }).click();
-  await expect(page.locator(".animal-card.unlocked")).toHaveCount(1);
+  await expect(page.locator(".reward-card.earned")).toHaveCount(1);
+  await expect(page.locator(".reward-card.unearned")).toHaveCount(15);
+  await page
+    .getByRole("button", { name: "View card: PopPop Gets Clean" })
+    .click();
+  await expect(
+    page.getByRole("dialog", { name: "PopPop Gets Clean" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("dialog").getByRole("img", { name: "PopPop Gets Clean" }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: "test-results/card-revealed.png",
+    fullPage: true,
+  });
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByRole("button", { name: "Leaderboard", exact: true }).click();
-  await expect(page.locator(".chart svg").last()).toBeVisible();
+  await expect(
+    page.getByRole("article", { name, exact: true }).getByRole("progressbar"),
+  ).toHaveAttribute("aria-valuenow", "1");
   const unauthorized = await page.request.post("/api/profiles", {
     data: { name: "Intruder", pin: "1111", goal: 2000 },
   });
@@ -160,21 +263,28 @@ test("family setup, child practice, exam rewards, analytics, and mobile layout",
   ).toBe(401);
   await guest.close();
   await page.getByRole("button", { name: "Boss battles", exact: true }).click();
-  await page
-    .locator(".animal-card")
-    .first()
-    .getByRole("button", { name: "Challenge" })
-    .click();
-  await page.getByRole("button", { name: "Let’s practice" }).click();
+  await expect(page.locator('.board-stop[data-battle="2"]')).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await page.getByRole("button", { name: "Start battle", exact: true }).click();
+  await expect(page.locator(".battle-preview .card-back")).toBeVisible();
+  await page.getByRole("button", { name: "Start battle", exact: true }).click();
   for (let i = 0; i < 20; i++) {
     await expect(page.locator(".round-top strong")).toHaveText(`${i + 1} / 20`);
     const [x, y] = (await page.locator(".flashcard h2").innerText())
       .split("×")
       .map(Number);
     const answerInput = page.getByLabel("Your answer", { exact: true });
-    await answerInput.fill(i === 0 ? "0" : String(x * y));
-    await answerInput.press("Enter");
+    await expect(page.getByRole("timer")).toBeVisible();
+    if (i !== 0) {
+      await answerInput.fill(String(x * y));
+      await answerInput.press("Enter");
+    }
     if (i === 0) {
+      await expect(page.getByRole("status")).toContainText("Time’s up.", {
+        timeout: 9000,
+      });
       await expect(page.getByRole("status")).toContainText(
         `${x} × ${y} = ${x * y}`,
       );
@@ -188,11 +298,34 @@ test("family setup, child practice, exam rewards, analytics, and mobile layout",
   await expect(
     page.getByRole("heading", { name: "Boss battle conquered!" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Back to base camp" }).click();
+  await page.getByRole("button", { name: "Back to the board" }).click();
   await expect(
     page.getByRole("heading", { name: new RegExp(`Hey ${name}`) }),
   ).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('.board-stop[data-battle="16"]').click();
+  await expect(page.locator(".board-detail-copy")).toContainText("King Monkey");
+  await expect(
+    page.getByRole("button", { name: "Locked", exact: true }),
+  ).toBeDisabled();
+  await page.screenshot({
+    path: "test-results/board-mobile-final-locked.png",
+    fullPage: true,
+  });
+  await page.locator('.board-stop[data-battle="5"]').click();
+  await expect
+    .poll(() =>
+      page.locator(".board-scroll").evaluate((el) => {
+        const stop = el
+            .querySelector('[data-battle="5"]')!
+            .getBoundingClientRect(),
+          frame = el.getBoundingClientRect();
+        return Math.abs(
+          stop.left + stop.width / 2 - frame.left - frame.width / 2,
+        );
+      }),
+    )
+    .toBeLessThan(3);
   await page.screenshot({
     path: "test-results/base-camp-mobile.png",
     fullPage: true,
@@ -256,15 +389,16 @@ test("family setup, child practice, exam rewards, analytics, and mobile layout",
     expect(result.exam.passed).toBe(true);
     return seen;
   }
-  for (const table of [2, 3, 4, 6, 7, 8, 9, 10, 11, 12]) await beat(table);
-  expect(
-    (
-      await page.request.post("/api/round", {
-        data: { mode: "test", table: 16, length: 20 },
-      })
-    ).status(),
-  ).toBe(403);
-  for (const region of [13, 14, 15]) expect((await beat(region)).size).toBe(4);
+  for (const table of [3, 4, 13, 5, 6, 7, 8, 14, 9, 10, 11, 12, 15]) {
+    expect(
+      (
+        await page.request.post("/api/round", {
+          data: { mode: "test", table: 16, length: 20 },
+        })
+      ).status(),
+    ).toBe(403);
+    expect((await beat(table)).size).toBe(table > 12 ? 4 : 1);
+  }
   expect((await beat(16)).size).toBe(12);
   const after = (await (await page.request.get("/api/dashboard")).json()).find(
     (k: any) => k.id === kid.id,
@@ -274,8 +408,27 @@ test("family setup, child practice, exam rewards, analytics, and mobile layout",
     after.certifications.some((c: any) => c.table === 16 && c.passed),
   ).toBe(true);
   await page.reload();
-  await expect(page.locator(".goal-note")).toContainText("👑 Adventure complete!");
-  await page.getByRole("button", { name: "Switch explorer" }).click();
+  await expect(page.locator(".goal-note")).toContainText(
+    "👑 Adventure complete!",
+  );
+  await page.getByRole("button", { name: "Leaderboard", exact: true }).click();
+  const leaderboardChild = page.getByRole("article", { name, exact: true });
+  await expect(leaderboardChild.getByRole("progressbar")).toHaveAttribute(
+    "aria-valuenow",
+    "16",
+  );
+  await expect(leaderboardChild).toContainText("16 / 16 cards");
+  await leaderboardChild
+    .getByText("View earned cards (16)", { exact: true })
+    .click();
+  await expect(leaderboardChild.locator(".reward-card.earned")).toHaveCount(16);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+
+  await page.getByRole("button", { name: "Switch child" }).click();
   await page.getByRole("button", { name: "Parent sign in" }).click();
   await page.getByLabel("Parent password").fill("local-test-parent-only");
   await page.getByRole("button", { name: "Let’s go" }).click();
@@ -283,11 +436,27 @@ test("family setup, child practice, exam rewards, analytics, and mobile layout",
     .getByRole("button", { name: "Parent dashboard", exact: true })
     .click();
   await page
-    .getByRole("combobox", { name: "Explorer", exact: true })
+    .getByRole("combobox", { name: "Child", exact: true })
     .selectOption(kid.id);
-  for (const metric of ["count", "median", "accuracy"]) {
-    await page.getByLabel("Heatmap metric").selectOption(metric);
-    await expect(page.locator(".chart svg").last()).toBeVisible();
+
+  await expect(page.locator(".parent-cards .reward-card.earned")).toHaveCount(
+    16,
+  );
+  await expect(page.locator(".parent-cards .reward-card.unearned")).toHaveCount(
+    0,
+  );
+  const accuracyLabels = await page
+    .locator(".tricky > div > span")
+    .allTextContents();
+  expect(accuracyLabels.length).toBeGreaterThan(0);
+  expect(accuracyLabels.every((text) => parseInt(text) < 100)).toBe(true);
+  await expect(page.locator(".heatmap-section")).toHaveCount(3);
+  for (const title of ["Accuracy", "Practice frequency", "Response speed"]) {
+    const section = page.getByRole("region", { name: title, exact: true });
+    await expect(section).toBeVisible();
+    await expect(section.locator(".chart svg").last()).toBeVisible();
+    // Every fact must retain its cell, including practiced but unmastered facts.
+    await expect(section.locator('[aria-label="cell"] rect')).toHaveCount(144);
   }
   await page.screenshot({
     path: "test-results/parent-mobile.png",

@@ -103,8 +103,23 @@ export const ANIMALS = [
   "🦋",
   "🐉",
 ];
-// A balanced exam covers every multiplier before repeating eight of them.
-export function examDeck(random = Math.random) {
+// Prioritize inaccurate facts, then slow ones, then facts not tried yet.
+export function weakness(f: Fact) {
+  if (f.count && f.accuracy < 0.9) return 3 + (1 - f.accuracy);
+  if (f.count && f.median >= 6000) return 2 + Math.min(f.median / 60000, 0.9);
+  return f.count ? 0 : 1;
+}
+// Known comfortable facts first; use simpler multipliers to break ties.
+export function warmupDifficulty(f: Fact) {
+  const simple = [1, 2, 5, 10].indexOf(f.b);
+  return weakness(f) * 100 + (simple < 0 ? 10 + f.b : simple);
+}
+// Cover every multiplier, then repeat the eight weakest facts.
+export function examDeck(
+  random = Math.random,
+  attempts: Attempt[] = [],
+  table = 1,
+) {
   const shuffle = (items: number[]) => {
     for (let i = items.length - 1; i > 0; i--) {
       const j = Math.floor(random() * (i + 1));
@@ -113,7 +128,21 @@ export function examDeck(random = Math.random) {
     return items;
   };
   const all = Array.from({ length: 12 }, (_, i) => i + 1);
-  return shuffle([...all, ...shuffle([...all]).slice(0, 8)]);
+  const tableFacts = facts(attempts).filter((f) => f.a === table);
+  const extras = shuffle([...all])
+    .sort((a, b) => weakness(tableFacts[b - 1]) - weakness(tableFacts[a - 1]))
+    .slice(0, 8);
+  const warmup = shuffle([...all])
+    .sort(
+      (a, b) =>
+        warmupDifficulty(tableFacts[a - 1]) -
+        warmupDifficulty(tableFacts[b - 1]),
+    )
+    .slice(0, 3);
+  return [
+    ...warmup,
+    ...shuffle([...all.filter((b) => !warmup.includes(b)), ...extras]),
+  ];
 }
 export function examResult(
   attempts: Pick<Attempt, "correct" | "elapsed_ms">[],

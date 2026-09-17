@@ -17,4 +17,19 @@
       "migrations_dir": "migrations",
     },
   ],
+  "env": {
+    "production": {
+      "name": "poppopmath",
+      "workers_dev": true,
+      "preview_urls": false,
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "mathgoat",
+          "database_id": "c5d26e4d-2144-422f-a99d-f4f4c1fd0eaa",
+          "migrations_dir": "migrations",
+        },
+      ],
+    },
+  },
 }

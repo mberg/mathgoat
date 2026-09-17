@@ -9,9 +9,10 @@
     "preview": "wrangler dev --ip 0.0.0.0 --port 8789",
     "db:local": "wrangler d1 migrations apply DB --local",
     "test": "tsx --test tests/*.test.ts",
-    "deploy": "npm run build && wrangler deploy",
+    "deploy": "npm run build && wrangler deploy --env production",
     "test:e2e": "playwright test",
-    "format": "prettier --write src server tests *.ts *.json *.jsonc *.md"
+    "format": "prettier --write src server tests *.ts *.json *.jsonc *.md",
+    "db:remote": "wrangler d1 migrations apply DB --remote --env production"
   },
   "dependencies": {
     "@fontsource/dm-sans": "^5.3.0",
