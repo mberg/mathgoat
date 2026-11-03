@@ -1,5 +1,6 @@
 import {
   hasPassed,
+  timesBeaten,
   adventureComplete,
   nextBattle,
   JOURNEY_ORDER,
@@ -691,7 +692,7 @@ function App() {
                 {question.exam && (
                   <p>
                     {question.exam.passed
-                      ? `Card unlocked! ${question.exam.fluent ? "Fluent badge earned, too. ⚡" : "Keep practicing to earn your fluent badge."}`
+                      ? `${timesBeaten(table, kid?.certifications || []) > 1 ? "You beat it again and earned a star! ⭐" : "Card unlocked!"} ${question.exam.fluent ? "Fluent badge earned, too. ⚡" : "Keep practicing to earn your fluent badge."}`
                       : "18 out of 20 unlocks your card. Try again whenever you’re ready."}
                   </p>
                 )}

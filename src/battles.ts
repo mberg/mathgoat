@@ -18,6 +18,13 @@ export const JOURNEY_ORDER = [
 export function hasPassed(id: number, certs: Certification[]) {
   return certs.some((c) => c.table === id && c.passed);
 }
+export function timesBeaten(id: number, certs: Certification[]) {
+  return certs.filter((c) => c.table === id && c.passed).length;
+}
+/** One star for each win after the first. */
+export function replayStars(id: number, certs: Certification[]) {
+  return Math.max(0, timesBeaten(id, certs) - 1);
+}
 export function canChallenge(id: number, certs: Certification[]) {
   const index = JOURNEY_ORDER.indexOf(id);
   return (

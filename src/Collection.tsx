@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Lock, X } from "lucide-react";
 import { adventureCards, cardFor, logoImage } from "./cards";
-import { hasPassed, type Certification } from "./battles";
+import { hasPassed, replayStars, type Certification } from "./battles";
+import { ReplayStars } from "./AdventureBoard";
 export function Collection({
   certifications,
   earnedOnly = false,
@@ -21,7 +22,8 @@ export function Collection({
             const earned = hasPassed(card.table, certifications),
               fluent = certifications.some(
                 (c) => c.table === card.table && c.fluent,
-              );
+              ),
+              stars = replayStars(card.table, certifications);
             return (
               <article
                 className={"reward-card " + (earned ? "earned" : "unearned")}
@@ -49,6 +51,7 @@ export function Collection({
                     </div>
                   )}
                 </button>
+                {stars > 0 && <ReplayStars count={stars} />}
                 <div className="reward-info">
                   <span className="eyebrow">
                     {card.stage} · {earned ? "COLLECTED" : "TO DISCOVER"}

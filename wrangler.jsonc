@@ -22,6 +22,7 @@
       "name": "poppopmath",
       "workers_dev": true,
       "preview_urls": false,
+      "routes": [{ "pattern": "poppop.bergworks.org", "custom_domain": true }],
       "d1_databases": [
         {
           "binding": "DB",
