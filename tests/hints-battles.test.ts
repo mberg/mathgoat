@@ -8,6 +8,8 @@ import {
   JOURNEY_ORDER,
   nextBattle,
   adventureComplete,
+  timesBeaten,
+  replayStars,
 } from "../src/battles.ts";
 import { reviewFact, type Attempt, award, examDeck } from "../src/learning.ts";
 const attempt = (a: number, b: number, correct = 1): Attempt => ({
@@ -132,4 +134,25 @@ test("bosses begin with three gentler questions without losing coverage", () => 
       assert.equal(new Set(deck.map((q) => q.a)).size, tables.length);
     }
   }
+});
+
+test("replaying a beaten boss earns one star per extra win", () => {
+  const certs = [
+    { table: 13, passed: true, fluent: false },
+    { table: 13, passed: false, fluent: false },
+    { table: 13, passed: true, fluent: true },
+    { table: 13, passed: true, fluent: false },
+    { table: 2, passed: true, fluent: false },
+  ];
+  assert.equal(timesBeaten(13, certs), 3);
+  assert.equal(replayStars(13, certs), 2);
+  assert.equal(replayStars(2, certs), 0);
+  assert.equal(replayStars(5, certs), 0);
+  assert.equal(
+    canChallenge(13, [
+      ...[1, 2, 3, 4].map((table) => ({ table, passed: true, fluent: false })),
+      { table: 13, passed: true, fluent: false },
+    ]),
+    true,
+  );
 });

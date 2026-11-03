@@ -2423,3 +2423,37 @@ header {
 .boss-timer.urgent .progress > div {
   background: #b34035;
 }
+.replay-stars {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1px;
+  font-size: 14px;
+  line-height: 1;
+  letter-spacing: 1px;
+  white-space: nowrap;
+  margin-top: 6px;
+}
+.replay-stars small {
+  font-size: 12px;
+  font-weight: 800;
+  margin-left: 2px;
+  color: #9f7447;
+}
+.board-stop .replay-stars {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  font-size: 11px;
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: #fff4d7;
+  box-shadow: 0 1px 4px #a4773240;
+  pointer-events: none;
+}
+.board-detail-copy .replay-stars {
+  justify-content: flex-start;
+  margin: -2px 0 7px;
+}

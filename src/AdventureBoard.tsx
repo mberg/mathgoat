@@ -6,6 +6,7 @@ import {
   canChallenge,
   hasPassed,
   nextBattle,
+  replayStars,
   JOURNEY_ORDER,
   type Certification,
 } from "./battles";
@@ -98,7 +99,8 @@ export function AdventureBoard({
             const id = Number(n.cardId),
               done = hasPassed(id, certifications),
               open = canChallenge(id, certifications),
-              fluent = certifications.some((c) => c.table === id && c.fluent);
+              fluent = certifications.some((c) => c.table === id && c.fluent),
+              stars = replayStars(id, certifications);
             return (
               <button
                 key={id}
@@ -113,7 +115,7 @@ export function AdventureBoard({
                 aria-pressed={id === selected}
                 onClick={() => {
                   setSelected(id);
-                  if (open && !done && !readOnly) onChallenge(id);
+                  if (open && !readOnly) onChallenge(id);
                 }}
               >
                 {done ? (
@@ -148,6 +150,7 @@ export function AdventureBoard({
                     ⚡
                   </span>
                 )}
+                {stars > 0 && <ReplayStars count={stars} />}
               </button>
             );
           })}
@@ -197,6 +200,9 @@ export function AdventureBoard({
                 : "UP AHEAD"}
           </span>
           <h3>{reward.name}</h3>
+          {replayStars(selected, certifications) > 0 && (
+            <ReplayStars count={replayStars(selected, certifications)} />
+          )}
           <p>
             {!available
               ? `First beat ${cardFor(previous).name} and the earlier stops.`
@@ -224,5 +230,19 @@ export function AdventureBoard({
         </button>
       </div>
     </section>
+  );
+}
+export function ReplayStars({ count }: { count: number }) {
+  const label = `Beaten again ${count} ${count === 1 ? "time" : "times"}`;
+  return (
+    <span className="replay-stars" role="img" aria-label={label} title={label}>
+      {count > 5 ? (
+        <>
+          ⭐<small>×{count}</small>
+        </>
+      ) : (
+        "⭐".repeat(count)
+      )}
+    </span>
   );
 }
